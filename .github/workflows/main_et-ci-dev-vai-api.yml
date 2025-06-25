@@ -31,11 +31,17 @@ jobs:
       
       - name: Install dependencies
         run: pip install -r requirements.txt
-        
+
+      - name: Clean up unused packages and free space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: |
+          zip -r release.zip . -x "venv/*" ".git/*" "*.pyc" "__pycache__/*" ".github/*"
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
