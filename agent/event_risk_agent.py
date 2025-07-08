@@ -287,3 +287,39 @@ def event_risk_assessment_node(state: dict) -> dict:
             "risk_report": error_report,
             "chat_history": chat_history
         } 
+
+def batch_assess_venue_risks(llm, venues_info: List[Dict], time_period=""):
+    """Batch risk assessment for multiple venues in a single LLM call."""
+    search = GoogleSerperAPIWrapper()
+    all_venue_data = []
+    for venue in venues_info:
+        venue_name = venue.get('name', 'Unknown Venue')
+        venue_location = venue.get('location', 'Unknown')
+        # Do web searches as before
+        weather_results = search.run(f"current weather alerts warnings {venue_name} {venue_location} {time_period} monsoon rain flood heat wave")
+        security_results = search.run(f"recent incidents protests security issues crime {venue_name} {venue_location} last week month")
+        health_results = search.run(f"health alerts disease outbreak COVID dengue health issues {venue_name} {venue_location} current")
+        logistics_results = search.run(f"traffic construction road closure infrastructure issues parking {venue_name} {venue_location} current")
+        events_results = search.run(f"upcoming events VIP movement Prime Minister rally concert festival {venue_name} {venue_location} {time_period}")
+        all_venue_data.append({
+            "name": venue_name,
+            "location": venue_location,
+            "weather": weather_results,
+            "security": security_results,
+            "health": health_results,
+            "logistics": logistics_results,
+            "events": events_results
+        })
+    # Build a single prompt
+    prompt = "You are an Event Risk Assessment AI. For each venue below, analyze the search results and provide a risk assessment and risk score (1-10):\n\n"
+    for i, v in enumerate(all_venue_data, 1):
+        prompt += f"Venue {i}: {v['name']} ({v['location']})\n"
+        prompt += f"Weather: {v['weather']}\n"
+        prompt += f"Security: {v['security']}\n"
+        prompt += f"Health: {v['health']}\n"
+        prompt += f"Logistics: {v['logistics']}\n"
+        prompt += f"Events: {v['events']}\n\n"
+    prompt += "For each venue, provide:\n- A risk assessment by category\n- An overall risk score (1-10)\n- A summary and recommendations\n"
+    # Single LLM call
+    result = llm.invoke(prompt)
+    return result.content if hasattr(result, 'content') else str(result) 

@@ -42,9 +42,6 @@ def intelligent_venue_processor_node(state: dict) -> dict:
                 "name": "Venue Name",
                 "location": "Specific Location",
                 "type": "Venue Type",
-                "capacity": "Capacity Info",
-                "price": "Price Range",
-                "features": "Key Features"
             }}
         ]
     }}
@@ -54,7 +51,8 @@ def intelligent_venue_processor_node(state: dict) -> dict:
     - If the venue finder provided actual venues (names, locations, details), set action to "extract_venues" and extract the venue information
     - If no venues were found or the response is unclear, set action to "no_venues_found"
     - Only extract venues that are actual venue names, not generic words or descriptions
-    - For venues, extract the most relevant information available
+    - For venues, extract the most relevant information available (name, location, type)
+    - Only ask for more information if the venue finder output is missing location or event type, NOT capacity or price.
 
     Respond with ONLY the JSON, no additional text.
     """
@@ -299,21 +297,13 @@ def handle_risk_assessment_request(state: dict) -> dict:
             venue_list = "\n".join([f"{i+1}. {venue.get('name', 'Unknown')}" for i, venue in enumerate(extracted_venues)])
             return {
                 **state,
-                "output": f"""I'm not sure which venues you'd like me to assess for risks. 
-
-**Available venues:**
-{venue_list}
-
-Please specify which venues you'd like me to assess by responding with:
-- "All venues" or "Yes" - for all venues
-- "Venue 1" or "The Leela" - for specific venue(s)
-- Venue numbers like "1 and 3" or "first and third\"""",
+                "output": f"""I'm not sure which venues you'd like me to assess for risks. \n\n{venue_list}\n\nPlease specify which venues you'd like me to assess by responding with:\n- \"All venues\" or \"Yes\" - for all venues\n- \"Venue 1\" or \"The Leela\" - for specific venue(s)\n- Venue numbers like \"1 and 3\" or \"first and third\"""",
                 "chat_history": chat_history
             }
     
     print(f"Assessing risks for {len(venues_to_assess)} venues: {[v.get('name', 'Unknown') for v in venues_to_assess]}")
     
-    # Perform risk assessment for selected venues
+    # Perform batch risk assessment for selected venues
     try:
         # Extract time period from original query or chat history
         time_period = ""
@@ -332,91 +322,15 @@ Please specify which venues you'd like me to assess by responding with:
                 if time_period:
                     break
         
-        # Assess risks for each selected venue
-        from agent.event_risk_agent import assess_venue_risks_directly, calculate_venue_score
+        from agent.event_risk_agent import batch_assess_venue_risks
+        risk_report = batch_assess_venue_risks(llm, venues_to_assess, time_period)
         
-        venue_risk_assessments = []
-        venue_scores = []
-        
-        for i, venue in enumerate(venues_to_assess):
-            print(f"Assessing risks for venue {i+1}: {venue.get('name', 'Unknown')}")
-            
-            # Assess risks for this venue
-            risk_report = assess_venue_risks_directly(llm, venue, time_period)
-            
-            # Calculate score for this venue
-            score_info = calculate_venue_score(risk_report)
-            
-            venue_risk_assessments.append({
-                'venue': venue,
-                'risk_report': risk_report,
-                'score': score_info
-            })
-            
-            venue_scores.append({
-                'name': venue.get('name', 'Unknown'),
-                'score': score_info['average_score'],
-                'risk_level': score_info['risk_level']
-            })
-        
-        # Sort venues by risk score (lowest risk first)
-        venue_scores.sort(key=lambda x: x['score'])
-        
-        # Create comprehensive output
-        risk_section = f"""## Venue Risk Assessment Results
-
-**Venues Ranked by Risk Level (Lowest to Highest):**
-
-"""
-        
-        for i, score_info in enumerate(venue_scores, 1):
-            risk_section += f"{i}. **{score_info['name']}** - Risk Score: {score_info['score']}/10 ({score_info['risk_level']} Risk)\n"
-        
-        risk_section += "\n---\n\n"
-        
-        # Add detailed risk assessments for each venue
-        risk_section += "## Detailed Venue-Specific Risk Assessments\n\n"
-        risk_section += "*Each assessment includes targeted searches for current weather alerts, recent incidents, health alerts, traffic issues, and conflicting events specific to each venue.*\n\n"
-        
-        for i, assessment in enumerate(venue_risk_assessments, 1):
-            venue = assessment['venue']
-            risk_report = assessment['risk_report']
-            score = assessment['score']
-            
-            risk_section += f"### {i}. {venue.get('name', 'Unknown Venue')}\n"
-            risk_section += f"**Location:** {venue.get('location', 'Unknown')}\n"
-            risk_section += f"**Overall Risk Score: {score['average_score']}/10 ({score['risk_level']} Risk)**\n\n"
-            risk_section += f"{risk_report}\n\n"
-            risk_section += "---\n\n"
-        
-        # Add recommendations
-        risk_section += """## Recommendations
-
-Based on the risk assessments above:
-
-"""
-        
-        if venue_scores:
-            best_venue = venue_scores[0]
-            risk_section += f"- **Recommended Venue**: {best_venue['name']} (Lowest risk score: {best_venue['score']}/10)\n"
-            
-            if best_venue['score'] <= 3:
-                risk_section += "- **Overall Assessment**: This venue appears to have low risk factors and is suitable for your event.\n"
-            elif best_venue['score'] <= 6:
-                risk_section += "- **Overall Assessment**: This venue has moderate risk factors. Consider implementing the mitigation strategies mentioned above.\n"
-            else:
-                risk_section += "- **Overall Assessment**: This venue has high risk factors. Consider alternative venues or implement comprehensive risk mitigation measures.\n"
-        
-        risk_section += """
----
-*This comprehensive assessment provides venue recommendations with detailed risk analysis and scoring to help you make informed decisions for your event.*"""
-        
+        # Return the batch risk report as output
         return {
             **state,
-            "output": risk_section,
+            "output": risk_report,
             "chat_history": chat_history
         }
-        
     except Exception as e:
         print(f"Risk assessment error: {e}")
         error_output = f"I apologize, but I encountered an error during risk assessment: {str(e)}"

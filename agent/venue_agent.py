@@ -42,7 +42,7 @@ def create_prompt():
     IMPORTANT RULES:
     - ALWAYS ensure that user query has a location, if it's not present, ask the user for the location, until then you can't proceed with the search.
     - ALWAYS use the web_search_venues tool for any place, cafe, restaurant, or venue search
-    - ALWAYS provide atleast 5 locations for the user to choose from, if the user asks for a specific place, you can provide 1 option.
+    - ALWAYS provide at least 5 locations for the user to choose from, if the user asks for a specific place, you can provide 1 option.
     - NEVER return code blocks or raw data in your responses
     - ALWAYS format your responses in **Markdown** (using tables, bullet lists, and headings as appropriate)
     - When presenting place information, use bullet points, numbered lists, or Markdown tables for clarity
@@ -69,6 +69,9 @@ def create_prompt():
     - Always match the venue type to the event type mentioned in the query
     - Do NOT recommend restaurants for sports events or banquet halls for outdoor activities unless specifically requested
     - Use your understanding of the event context to find the most appropriate venues
+    
+    STRICT REQUIREMENT GATHERING RULE:
+    - If the user provides only 1 or 2 requirements (for example, just a location or just an event type), you MUST always ask the user for more details before proceeding to search. Required details include at least: event type, expected attendance, budget, date, and any specific preferences or requirements. Do not proceed to search until you have at least 3 distinct requirements.
     """)
     return ChatPromptTemplate.from_messages([
         system_message,
