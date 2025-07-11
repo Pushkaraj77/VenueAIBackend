@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from agent.venue_graph import run_venue_finder_graph
+from agent.venue_graph import run_venue_finder_graph, run_llm_orchestrated_graph
 from models.venue_models import VenueSearchCriteria, VenueSearchResponse, VenueComparison
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
@@ -61,7 +61,7 @@ async def chat(request: ChatRequest):
         logger.info(f"Session ID: {session_id}")
         logger.info(f"Chat history length: {len(chat_history)}")
         
-        response, updated_history = run_venue_finder_graph(llm, request.message, chat_history)
+        response, updated_history = run_llm_orchestrated_graph(llm, request.message, chat_history)
         
         # Store updated chat history
         chat_histories[session_id] = updated_history

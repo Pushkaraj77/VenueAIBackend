@@ -74,6 +74,12 @@ def assess_venue_risks_directly(llm, venue_info: Dict, time_period=""):
         {events_results}
 
         **INSTRUCTIONS:**
+        - Your response MUST ONLY include venue-specific risk assessment and actionable recommendations. Do NOT include any generic city safety information, unrelated venues, or process/instructional/meta text (such as general advice, how to request a risk assessment, or what you are about to do).
+        - NEVER state that there is insufficient or inadequate data.
+        - ONLY present the risk assessment and actionable recommendations for the venue requested.
+        - Do NOT mention other venues, or provide general safety advice for the city or region.
+        - Do NOT include any statements about your process or what you are about to do.
+
         Create a venue-specific risk assessment that focuses ONLY on actual, current risks found in the search results. Do NOT provide generic advice. Instead:
 
         1. **Weather Risks**: Mention specific weather alerts, monsoon warnings, heat waves, or flood risks for this venue's exact location
@@ -319,7 +325,16 @@ def batch_assess_venue_risks(llm, venues_info: List[Dict], time_period=""):
         prompt += f"Health: {v['health']}\n"
         prompt += f"Logistics: {v['logistics']}\n"
         prompt += f"Events: {v['events']}\n\n"
-    prompt += "For each venue, provide:\n- A risk assessment by category\n- An overall risk score (1-10)\n- A summary and recommendations\n"
+    prompt += (
+        "For each venue, provide:\n"
+        "- A risk assessment by category\n"
+        "- An overall risk score (1-10)\n"
+        "- A summary and recommendations\n"
+        "- Your response MUST ONLY include venue-specific risk assessment and actionable recommendations. Do NOT include any generic city safety information, unrelated venues, or process/instructional/meta text (such as general advice, how to request a risk assessment, or what you are about to do).\n"
+        "- ONLY present the risk assessment and actionable recommendations for the venue requested.\n"
+        "- Do NOT mention other venues, or provide general safety advice for the city or region.\n"
+        "- Do NOT include any statements about your process or what you are about to do.\n"
+    )
     # Single LLM call
     result = llm.invoke(prompt)
     return result.content if hasattr(result, 'content') else str(result) 
